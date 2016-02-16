@@ -1,3 +1,4 @@
+import random
 import util
 
 class DecisionTree:
@@ -41,6 +42,10 @@ class DecisionTree:
                 subsets[key].append(example)
             else:
                 subsets[key] = [example]
+
+        # examples with identical attributes but different classes
+        if len(subsets) == 1:
+            return examples[0][-1]
 
         for value, subset in subsets.iteritems():
             node.children[value] = self.build_tree(subset)
