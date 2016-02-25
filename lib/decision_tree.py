@@ -19,9 +19,17 @@ class DecisionTree:
     def predict(self, example):
         return self.descend(example, self.root)
 
-    def build_tree(self, examples):
+    def build_tree(self, examples, target_index=-1):
         if len(set([example[-1] for example in examples])) == 1:
             return examples[0][-1]
+
+        target_counts = {}
+        for example in examples:
+            target = example[target_index]
+            if target in target_counts:
+                target_counts[target] += 1
+            else:
+                target_counts[target] = 1
 
         fitness_dict = {}
         for attribute in self.attributes:
@@ -33,6 +41,7 @@ class DecisionTree:
             best_attr = random.choice(self.attributes)
 
         node = TreeNode(best_attr, threshold=fitness_dict[best_attr][1])
+        node.target_counts = target_counts
         subsets = {}
 
         if best_attr.type_ == 'discrete':
@@ -82,18 +91,26 @@ class DecisionTree:
 
     def display_tree_dfs(self, node, level):
         if not isinstance(node, TreeNode):
-            print '  ' * level + node
             return
 
         for value, child in node.children.iteritems():
+            target_info = child
+            if isinstance(child, TreeNode):
+                target_info = child.target_counts
+
             if node.attribute.type_ == 'continuous':
-                print '{}{}{}{}'.format(
+                print '{}{}{}{} [{}]'.format(
                     '  ' * level,
                     node.attribute.name,
                     value,
-                    node.threshold)
+                    node.threshold,
+                    target_info)
             else:
-                print '  ' * level + node.attribute.name + ' = ' + value
+                print '{}{} = {} [{}]'.format(
+                    '  ' * level,
+                    node.attribute.name,
+                    value,
+                    target_info)
             self.display_tree_dfs(child, level + 1)
 
 class TreeNode:
@@ -102,6 +119,7 @@ class TreeNode:
         self.attribute = attribute
         self.threshold = threshold
         self.children = {}
+        self.target_counts = {}
 
 class Attribute:
 
