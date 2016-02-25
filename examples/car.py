@@ -10,7 +10,10 @@ from sklearn import cross_validation
 fname = 'data/car.csv'
 
 examples = np.genfromtxt(fname, dtype=None, delimiter=',')
-attributes = ['buying', 'maint', 'doors', 'persons', 'lug_boot', 'safety']
+attribute_names = ['buying', 'maint', 'doors', 'persons', 'lug_boot', 'safety']
+attributes = []
+for index, name in enumerate(attribute_names):
+    attributes.append(decision_tree.Attribute(name, 'discrete', index))
 
 dtree = decision_tree.DecisionTree()
 

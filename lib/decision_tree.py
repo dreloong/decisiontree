@@ -24,24 +24,32 @@ class DecisionTree:
             return examples[0][-1]
 
         fitness_dict = {}
-        for index, attribute in enumerate(self.attributes):
-            fitness_dict[attribute] = self.fitness(examples, index)
+        for attribute in self.attributes:
+            fitness_dict[attribute] = self.fitness(examples, attribute)
 
-        best_attr = max(fitness_dict.keys(), key=lambda k: fitness_dict[k])
-        worst_attr = min(fitness_dict.keys(), key=lambda k: fitness_dict[k])
-        if fitness_dict[best_attr] == fitness_dict[worst_attr]:
+        best_attr = max(fitness_dict.keys(), key=lambda k: fitness_dict[k][0])
+        worst_attr = min(fitness_dict.keys(), key=lambda k: fitness_dict[k][0])
+        if fitness_dict[best_attr][0] == fitness_dict[worst_attr][0]:
             best_attr = random.choice(self.attributes)
 
-        node = TreeNode(best_attr)
-
+        node = TreeNode(best_attr, threshold=fitness_dict[best_attr][1])
         subsets = {}
-        index = self.attributes.index(best_attr)
-        for example in examples:
-            key = example[index]
-            if key in subsets:
-                subsets[key].append(example)
-            else:
-                subsets[key] = [example]
+
+        if best_attr.type_ == 'discrete':
+            for example in examples:
+                key = example[best_attr.index]
+                if key in subsets:
+                    subsets[key].append(example)
+                else:
+                    subsets[key] = [example]
+        else:
+            subsets[' >= '] = []
+            subsets[' < '] = []
+            for example in examples:
+                if example[best_attr.index] >= node.threshold:
+                    subsets[' >= '].append(example)
+                else:
+                    subsets[' < '].append(example)
 
         # examples with identical attributes but different classes
         if len(subsets) == 1:
@@ -56,10 +64,18 @@ class DecisionTree:
         if not isinstance(node, TreeNode):
             return node
 
-        index = self.attributes.index(node.attribute)
-        if example[index] not in node.children:
+        value = example[node.attribute.index]
+
+        if node.attribute.type_ == 'continuous':
+            if value >= node.threshold:
+                return self.descend(example, node.children[' >= '])
+            else:
+                return self.descend(example, node.children[' < '])
+
+        # discrete attribute
+        if value not in node.children:
             return None
-        return self.descend(example, node.children[example[index]])
+        return self.descend(example, node.children[value])
 
     def display_tree(self):
         self.display_tree_dfs(self.root, 0)
@@ -70,11 +86,26 @@ class DecisionTree:
             return
 
         for value, child in node.children.iteritems():
-            print '  ' * level + node.attribute + ' = ' + value
+            if node.attribute.type_ == 'continuous':
+                print '{}{}{}{}'.format(
+                    '  ' * level,
+                    node.attribute.name,
+                    value,
+                    node.threshold)
+            else:
+                print '  ' * level + node.attribute.name + ' = ' + value
             self.display_tree_dfs(child, level + 1)
 
 class TreeNode:
 
-    def __init__(self, attribute):
+    def __init__(self, attribute, threshold=None):
         self.attribute = attribute
+        self.threshold = threshold
         self.children = {}
+
+class Attribute:
+
+    def __init__(self, name, type_, index):
+        self.name = name
+        self.type_ = type_
+        self.index = index
