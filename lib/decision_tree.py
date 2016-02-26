@@ -1,12 +1,16 @@
 import random
 import util
 
+from Queue import Queue
+
 class DecisionTree:
 
-    def __init__(self):
+    def __init__(self, debugging=False):
         self.root = None
+        self.debugging = debugging
 
-    def fit(self, examples, attributes, fitness_metric='information_gain'):
+    def fit(self, examples, attributes, fitness_metric='information_gain',
+            pruning=False):
         self.attributes = attributes
 
         if fitness_metric == 'information_gain':
@@ -14,7 +18,14 @@ class DecisionTree:
         else:
             raise ValueError('invalid fitness metric')
 
-        self.root = self.build_tree(examples)
+        if pruning:
+            random.shuffle(examples)
+            validation_set = examples[:len(examples)/3]
+            training_set = examples[len(examples)/3:]
+            self.root = self.build_tree(training_set)
+            self.prune(validation_set)
+        else:
+            self.root = self.build_tree(examples)
 
     def predict(self, example):
         return self.descend(example, self.root)
@@ -85,6 +96,50 @@ class DecisionTree:
         if value not in node.children:
             return None
         return self.descend(example, node.children[value])
+
+    def prune(self, examples, target_index=-1):
+        init_accuracy = self.accuracy(examples, target_index)
+        max_accuracy = init_accuracy
+        q = Queue()
+        q.put(self.root)
+        nodes = [self.root]
+
+        while not q.empty():
+            node = q.get()
+            for child in node.children.values():
+                if isinstance(child, TreeNode):
+                    q.put(child)
+                    nodes.append(child)
+
+        while len(nodes) > 0:
+            node = nodes.pop()
+            for value in node.children:
+                child = node.children[value]
+                if not isinstance(child, TreeNode):
+                    continue
+
+                majority_target = max(
+                    child.target_counts.keys(),
+                    key=lambda x: child.target_counts[x]
+                )
+                node.children[value] = majority_target
+                current_accuracy = self.accuracy(examples, target_index)
+                if current_accuracy > max_accuracy:
+                    max_accuracy = current_accuracy
+                else:
+                    node.children[value] = child
+
+        if self.debugging:
+            print 'Accuracy improved from {} to {} after pruning.'.format(
+                init_accuracy,
+                max_accuracy)
+
+    def accuracy(self, examples, target_index=-1):
+        count = 0
+        for example in examples:
+            if example[target_index] == self.predict(example):
+                count += 1
+        return 1.0 * count / len(examples)
 
     def display_tree(self):
         self.display_tree_dfs(self.root, 0)
